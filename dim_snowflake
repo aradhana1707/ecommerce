@@ -1,0 +1,40 @@
+create or replace table dim_user as (
+select user_id from orders);
+
+create or replace table dim_products as(
+select product_id,product_name 
+from products
+);
+
+create or replace table dim_aisles as(
+select aisle_id,aisle from aisles
+);
+
+
+create or replace table dim_orders as (
+select order_id,order_number,order_dow,
+order_hour_of_day from orders
+);
+
+create or replace table dim_departments as (
+select department_id,department from departments
+);
+
+create or replace table fact_orders as (
+select op.order_id,p.product_id,p.aisle_id,p.department_id,user_id,op.add_to_cart_order,op.reordered
+from order_products as op
+join products as p on p.product_id=op.product_id
+join orders as o on op.order_id=o.order_id);
+
+---top 5 aisels with highest number of reordered products
+
+select 
+a.aisle,count(*) as reorderd_products
+from 
+fact_orders as f
+join 
+aisles as a on a.aisle_id=f.aisle_id
+group by 
+a.aisle
+order by 
+reorderd_products desc;
