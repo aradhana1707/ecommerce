@@ -1,0 +1,92 @@
+# storage integration
+
+CREATE OR REPLACE STORAGE INTEGRATION ECOMM_INT
+TYPE=external_stage
+storage_provider=s3
+enabled=true
+storage_aws_role_arn="arn:aws:iam::654654433023:role/ecomm_role"
+storage_allowed_locations=('s3://ecomm-snowflake');
+desc storage integration ECOMM_INT;
+
+create schema ecomm_storage_integration;
+
+# create table
+
+create table aisles(
+aisle_id int primary key,
+aisle varchar(255));
+
+# file format
+
+create or replace file format ecomm_st_format
+type='csv'
+skip_header=1
+field_delimiter=','
+field_optionally_enclosed_by='"'
+null_if=('NULL','null')
+empty_field_as_null=True
+
+# stage
+
+create or replace stage ecomm_st_stage
+url="s3://ecomm-snowflake/insta-data/"
+storage_integration=ECOMM_INT
+file_format=ecomm_st_format
+
+# create pipes
+
+create or replace pipe ecomm_st_pipe
+auto_ingest=true
+as
+copy into aisles
+from @ecomm_st_stage
+on_error='continue'
+
+desc pipe ecomm_st_pipe;
+
+show pipes in schema ECOMM_STORAGE_INTEGRATION;
+
+create table departments(
+department_id int primary key,
+department varchar(255));
+
+copy into departments
+from @ecomm_st_stage
+on_error='continue'
+
+create table order_products(
+order_id int ,
+product_id int,
+add_to_cart_order int,
+reordered int);
+
+copy into order_products
+from @ecomm_st_stage
+on_error='continue'
+
+# scd 2
+
+alter table order_products add column order_segment int;  ---add this column to existing data
+alter table order_products add column start_date date;
+alter table order_products add column end_date date;
+alter table order_products add column version int default 1;
+
+
+update order_products
+set order_segment=100,start_date='2022-03-01',end_date='2022-03-26'
+where order_id=1555910
+
+select * from order_products
+where order_id=1555910
+
+
+select
+order_id,
+product_id,
+reordered,
+'200',
+'2023-03-23',
+'2023-03-30',
+version + 1
+from order_products
+where order_id=1555910;
